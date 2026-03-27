@@ -43,6 +43,7 @@ const defaultKeywords = `\\b(africa|egypt|black|slaves?|us south|plantations?|pr
 let currentExtractionData = {};
 let activeSourceRef = null;
 let ui = {};
+let totalMatchCount = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     ui = {
@@ -85,19 +86,25 @@ async function startExtraction() {
     activeSourceRef = source;
     
     let keywordPattern;
-    try { keywordPattern = new RegExp(rawKeywords, 'ig'); } 
-    catch (e) { return alert("Invalid Regex Pattern."); }
+    try { 
+        keywordPattern = new RegExp(rawKeywords, 'ig'); 
+    } catch (e) { 
+        return alert("Invalid Regex Pattern."); 
+    }
 
+    // Reset UI and State
     ui.extractBtn.disabled = true;
     ui.downloadBtn.disabled = true;
-    ui.resultsContainer.innerHTML = '';
+    ui.resultsContainer.innerHTML = ''; // Clear results for new run
     ui.matchCount.classList.add('hidden');
     ui.progressContainer.classList.remove('hidden');
     ui.citationBanner.classList.remove('hidden');
     ui.activeCitationText.innerHTML = source.fullCitation;
     ui.activeCitationLink.href = source.link;
     ui.progressBar.style.width = '0%';
+    
     currentExtractionData = {};
+    totalMatchCount = 0;
     
     updateStatus('Initializing job...', 'running');
 
@@ -109,7 +116,11 @@ async function startExtraction() {
         } else {
             await extractFromHTML(source, keywordPattern, source.name);
         }
-        renderResults();
+        
+        if (totalMatchCount === 0) {
+            ui.resultsContainer.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400">No matches found for the given keywords.</div>';
+        }
+        
         updateStatus('Extraction complete', 'success');
     } catch (error) {
         console.error(error);
@@ -117,7 +128,7 @@ async function startExtraction() {
     } finally {
         ui.extractBtn.disabled = false;
         ui.progressContainer.classList.add('hidden');
-        if (Object.keys(currentExtractionData).length > 0) ui.downloadBtn.disabled = false;
+        if (totalMatchCount > 0) ui.downloadBtn.disabled = false;
     }
 }
 
@@ -141,80 +152,123 @@ async function extractFromHTML(source, regex, volumeName) {
             if (data.contents) {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data.contents, "text/html");
+                
+                // Clean the DOM of nav/footer elements before text extraction
                 doc.querySelectorAll('script, style, nav, footer, .footer, .information, .toc, .index').forEach(el => el.remove());
                 const text = doc.body.innerText || doc.body.textContent;
                 
                 const citationStr = source.citationTemplate.replace('{chapter}', chapterDisplay);
                 const matches = processTextForMatches(text, regex, chapterDisplay, citationStr);
+                
                 if (matches.length > 0) {
                     const sectionKey = `${volumeName} - Chapter ${chapterDisplay}`;
                     currentExtractionData[sectionKey] = matches;
+                    
+                    // INCREMENTAL RENDERING: Append this chapter's matches to UI immediately
+                    appendResultToUI(sectionKey, matches);
                 }
             }
-        } catch (err) { console.warn(`Failed: ${chapterFile}`, err); }
+        } catch (err) { 
+            console.warn(`Failed: ${chapterFile}`, err); 
+        }
+        
+        // Brief pause to allow UI thread to breathe
         await new Promise(r => setTimeout(r, 30));
     }
     ui.progressBar.style.width = `100%`;
 }
 
 function processTextForMatches(text, regex, locationRef, citationStr) {
+    // Basic sentence splitting logic
     const sentenceRegex = /[^.!?]+[.!?]+(?=\s|$)/g;
     const sentences = (text.match(sentenceRegex) || [text]).map(s => s.trim()).filter(s => s.length > 0);
+    
     const matchIndices = [];
-    sentences.forEach((s, idx) => { regex.lastIndex = 0; if (regex.test(s)) matchIndices.push(idx); });
+    sentences.forEach((s, idx) => { 
+        regex.lastIndex = 0; 
+        if (regex.test(s)) matchIndices.push(idx); 
+    });
 
     if (matchIndices.length === 0) return [];
 
-    const windows = matchIndices.map(i => ({ start: Math.max(0, i - 1), end: Math.min(sentences.length - 1, i + 1) }));
+    // Create context windows [i-1, i, i+1]
+    const windows = matchIndices.map(i => ({ 
+        start: Math.max(0, i - 1), 
+        end: Math.min(sentences.length - 1, i + 1) 
+    }));
+
+    // Merge overlapping windows
     const merged = [];
     if (windows.length > 0) {
         let curr = windows[0];
         for (let i = 1; i < windows.length; i++) {
-            if (windows[i].start <= curr.end + 1) curr.end = Math.max(curr.end, windows[i].end);
-            else { merged.push(curr); curr = windows[i]; }
+            if (windows[i].start <= curr.end + 1) {
+                curr.end = Math.max(curr.end, windows[i].end);
+            } else {
+                merged.push(curr);
+                curr = windows[i];
+            }
         }
         merged.push(curr);
     }
+    
+    // Format windows as quotes
     return merged.map(w => `"${sentences.slice(w.start, w.end + 1).join(" ")}" ${citationStr}`);
 }
 
-function renderResults() {
-    ui.resultsContainer.innerHTML = '';
-    let count = 0;
+/**
+ * Appends a specific chapter's results to the UI.
+ * This is called incrementally as results are found.
+ */
+function appendResultToUI(section, quotes) {
     const fragment = document.createDocumentFragment();
-    for (const [section, quotes] of Object.entries(currentExtractionData)) {
-        const h3 = document.createElement('h3');
-        h3.className = "text-base font-semibold text-slate-800 border-b border-slate-200 pb-2 mb-4 mt-8 first:mt-2";
-        h3.textContent = section;
-        fragment.appendChild(h3);
-        quotes.forEach(quote => {
-            count++;
-            const p = document.createElement('p');
-            p.className = "mb-5 text-sm leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm relative pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-indigo-500 before:rounded-l-lg";
-            const hlRegex = new RegExp(`\\b(${ui.keywordInput.value.trim()})\\b`, 'gi');
-            p.innerHTML = quote.replace(hlRegex, '<mark class="bg-indigo-100 text-indigo-900 font-semibold px-1 rounded">$1</mark>');
-            fragment.appendChild(p);
-        });
-    }
-    if (count === 0) ui.resultsContainer.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400">No matches found.</div>';
-    else { 
-        ui.resultsContainer.appendChild(fragment); 
-        ui.matchCount.textContent = `${count} matches`; 
-        ui.matchCount.classList.remove('hidden'); 
-    }
+    
+    const h3 = document.createElement('h3');
+    h3.className = "text-base font-semibold text-slate-800 border-b border-slate-200 pb-2 mb-4 mt-8 first:mt-2";
+    h3.textContent = section;
+    fragment.appendChild(h3);
+
+    const keywordStr = ui.keywordInput.value.trim();
+    const hlRegex = new RegExp(`\\b(${keywordStr})\\b`, 'gi');
+
+    quotes.forEach(quote => {
+        totalMatchCount++;
+        const p = document.createElement('p');
+        p.className = "mb-5 text-sm leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm relative pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-indigo-500 before:rounded-l-lg";
+        
+        // Highlight keywords for the user
+        p.innerHTML = quote.replace(hlRegex, '<mark class="bg-indigo-100 text-indigo-900 font-semibold px-1 rounded">$1</mark>');
+        fragment.appendChild(p);
+    });
+
+    ui.resultsContainer.appendChild(fragment);
+    
+    // Update match count display
+    ui.matchCount.textContent = `${totalMatchCount} matches found`;
+    ui.matchCount.classList.remove('hidden');
+    ui.downloadBtn.disabled = false;
 }
 
 function generateAndDownloadMarkdown() {
     const temp = document.createElement("div"); 
     temp.innerHTML = activeSourceRef.fullCitation;
-    let md = `# Capital Context Report\n\n**Source:** ${temp.textContent}\n**Link:** ${activeSourceRef.link}\n\n---\n\n`;
+    const plainCitation = temp.textContent || temp.innerText;
+    
+    let md = `# Capital Context Report\n\n**Source:** ${plainCitation}\n**Link:** ${activeSourceRef.link}\n\n---\n\n`;
+    
+    // Sort keys alphabetically/chronologically if needed, currently posts in order found
     for (const [section, quotes] of Object.entries(currentExtractionData)) {
         md += `## ${section}\n\n`;
         quotes.forEach(q => md += `> ${q}\n\n`);
     }
+    
     const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); 
-    a.href = URL.createObjectURL(blob); 
+    a.href = url; 
     a.download = `capital_report_${Date.now()}.md`; 
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
