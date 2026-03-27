@@ -1,45 +1,55 @@
-# Capital Context Extractor
+# Marx's Capital Context Extractor
 
-A client-side web application designed to parse and extract keyword-based context windows from various digital editions of Karl Marx's Capital, Volume I.
+A high-performance, client-side web application designed to perform granular keyword research and contextual extraction across Karl Marx's Capital: A Critique of Political Economy (Volumes I, II, and III).
 
-## Features
+## Overview
 
-* Multi-Source Support: Extracts text from both HTML archives and standard PDF translations (Penguin and Untermann editions).
+This tool automates the process of identifying specific terms and their surrounding context within the digital archives of Marxists.org. Unlike standard browser search functions, this application tokenizes the text into sentences and assembles "context windows" (adjacent sentences) to preserve the original meaning of the keyword usage.
 
-* Regex Keyword Matching: Supports complex regular expression queries to find specific terms, boundaries, and variations.
+## Key Features
 
-* Contextual Windowing: Automatically merges adjacent sentences surrounding a matched keyword to provide readable context.
+* Multi-Volume Support: Comprehensive coverage of Volume I (Production), Volume II (Circulation), and Volume III (Production as a Whole).
 
-* Markdown Export: Generates a formatted .md file with full academic citations and source links.
+* Incremental Rendering: Results are streamed to the UI in real-time as each chapter is processed, allowing for immediate analysis during long-running extraction jobs.
 
-* Client-Side Processing: All text extraction and parsing occur locally in the browser using pdf.js.
+* Advanced Regex Support: Utilizes JavaScript's Regular Expression engine for complex queries, including word boundaries (\b), optional characters, and logical OR operations.
 
-## Repository Structure
+* Context Preservation: Automatically identifies match indices and merges overlapping windows to provide a continuous reading experience for adjacent matches.
 
-* index.html: The main user interface and layout.
+* Academic Citation Engine: Dynamically generates academic citations for every extracted quote, mapping file metadata to specific chapters and volumes.
 
-* style.css: Custom styling, typography, and scrollbar definitions.
+* Markdown Export: Facilitates research workflows by allowing users to download a formatted extraction report containing all quotes, citations, and source links.
 
-* app.js: Core extraction logic, PDF/HTML parsing, and UI state management.
+## Technical Architecture
+
+The application is built as a serverless, static web tool optimized for GitHub Pages.
+
+* Data Acquisition: Utilizes the allorigins.win public CORS proxy to fetch raw HTML manuscripts from marxists.org directly within the user's browser.
+
+* Parsing Engine: Implements a client-side DOMParser to sanitize incoming HTML, removing navigation menus, footers, and metadata before text extraction.
+
+* Tokenization: Employs a regex-based sentence tokenizer to handle punctuation-aware text splitting, facilitating the creation of [i-1, i, i+1] context windows.
+
+* UI Framework: Integrated with a modern enterprise-grade layout using Tailwind CSS, featuring real-time job status indicators and progress tracking.
+
+## Source Materials
+
+The extractor targets the following Progress Publishers editions:
+
+* Volume I: Samuel Moore and Edward Aveling translation (1887).
+
+* Volume II: I. Lasker translation (1956).
+
+* Volume III: Institute of Marxism-Leninism (1959).
+
+## Operational Limitations
+
+* Proxy Dependency: Job stability is dependent on the availability of the public CORS proxy. High-frequency requests across all volumes may trigger temporary rate-limiting (HTTP 429).
+
+* Client-Side Processing: Large volumes (particularly Volume III with 52 chapters) are processed entirely in memory. Performance may vary based on hardware and browser resource allocation.
+
+* Network Latency: Total extraction time is a function of the target server's response time and the number of chapters selected.
 
 ## Deployment
 
-This application is designed to be hosted statically via GitHub Pages.
-
-Push the repository files (index.html, style.css, app.js) to the main branch.
-
-Navigate to your repository Settings > Pages.
-
-Set the source to deploy from the main branch.
-
-Save and wait for the deployment to finish.
-
-## Technical Architecture & Limitations
-
-Because this tool operates entirely within the browser, it faces specific technical constraints:
-
-* CORS Proxies: Browsers block client-side scripts from downloading files from external domains. This app utilizes public CORS proxies (corsproxy.io and api.allorigins.win) to bypass these restrictions.
-
-* Rate Limiting: Heavy usage, particularly downloading the large PDF files, may result in temporary rate-limiting (HTTP 429) from the proxy servers. The HTML source is the most reliable and fastest option.
-
-* Performance: Evaluating a 1,000-page PDF entirely in browser memory is computationally intensive. The script uses asynchronous yielding to prevent UI freezing, but full extraction may take up to 60 seconds depending on device hardware.
+To host this tool, upload index.html, app.js, and style.css to a GitHub repository and enable GitHub Pages under the repository settings.
