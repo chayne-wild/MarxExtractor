@@ -5,12 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Capital Context Extractor</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
-        // Initialize pdf.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    </script>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        /* Custom scrollbar for the output area */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        body { 
+            background-color: #f8fafc; 
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
 
@@ -21,9 +31,9 @@
                 <div class="bg-indigo-600 p-1.5 rounded-lg">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 </div>
-                <h1 class="text-lg font-semibold tracking-tight text-slate-900">Context Extractor <span class="text-slate-400 font-normal ml-1">| Capital Vol. I</span></h1>
+                <h1 class="text-lg font-semibold tracking-tight text-slate-900">Context Extractor <span class="text-slate-400 font-normal ml-1">| Capital Volumes I-III</span></h1>
             </div>
-            <a href="https://github.com" target="_blank" class="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1.5">
+            <a href="https://github.com/chayne-wild/MarxExtractor" target="_blank" class="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg>
                 GitHub
             </a>
@@ -45,15 +55,16 @@
                     <div class="mb-5">
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Target Keywords</label>
                         <textarea id="keywordInput" rows="4" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm font-mono text-slate-600 transition-all resize-none shadow-sm placeholder:text-slate-400" placeholder="africa|egypt|black|slaves?|colonial"></textarea>
-                        <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">Regex supported. Separate terms with <code>|</code> (pipe). Use <code>\b</code> for word boundaries.</p>
+                        <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">Regex supported. Separate terms with <code>|</code>. Use <code>\b</code> for word boundaries.</p>
                     </div>
 
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Data Source</label>
                         <select id="sourceSelect" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm text-slate-700 transition-all shadow-sm appearance-none cursor-pointer" style="background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e&quot;); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem;">
-                            <option value="html_marxists">HTML (marxists.org) - Recommended</option>
-                            <option value="pdf_untermann">PDF: Untermann Translation</option>
-                            <option value="pdf_penguin">PDF: Penguin Edition</option>
+                            <option value="html_marxists_all">All Volumes (I, II, & III)</option>
+                            <option value="html_marxists_v1">Volume I - Process of Production</option>
+                            <option value="html_marxists_v2">Volume II - Circulation of Capital</option>
+                            <option value="html_marxists_v3">Volume III - Production as a Whole</option>
                         </select>
                     </div>
 
@@ -72,7 +83,7 @@
                 <div class="p-5 flex-grow flex flex-col justify-center">
                     <div class="flex items-center gap-3 mb-4">
                         <div id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
-                        <div id="statusText" class="text-sm font-medium text-slate-700">Ready</div>
+                        <div id="statusText" class="text-sm font-medium text-slate-700 uppercase tracking-tight">Ready</div>
                     </div>
                     
                     <div class="w-full bg-slate-100 rounded-full h-1.5 mb-5 hidden overflow-hidden shrink-0" id="progressContainer">
@@ -80,7 +91,7 @@
                     </div>
 
                     <div class="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed mt-auto">
-                        <span class="font-semibold text-slate-700">Architecture Note:</span> Processing leverages public CORS proxies. Large binaries (PDFs) are evaluated entirely client-side and may require up to 60s processing time.
+                        <span class="font-semibold text-slate-700">Architecture:</span> Processing leverages a public CORS proxy. HTML parsing and context extraction are evaluated entirely client-side.
                     </div>
                 </div>
             </div>
@@ -105,7 +116,7 @@
             <!-- Citation Banner -->
             <div id="citationBanner" class="hidden bg-slate-50 border-b border-slate-200 px-6 py-3 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex-grow">
-                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Active Reference</p>
+                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Active Source</p>
                     <div id="activeCitationText" class="text-sm text-slate-700 font-medium"></div>
                 </div>
                 <a id="activeCitationLink" href="#" target="_blank" class="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md">
@@ -118,12 +129,234 @@
             <div id="resultsContainer" class="p-6 overflow-y-auto h-full custom-scroll text-slate-800 space-y-6 bg-white">
                 <div class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
                     <svg class="w-12 h-12 mb-3 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <p class="text-sm font-medium">No data extracted yet.</p>
-                    <p class="text-xs mt-1 text-slate-400">Configure parameters and run extraction to view results.</p>
+                    <p class="text-sm font-medium">No matches extracted yet.</p>
+                    <p class="text-xs mt-1 text-slate-400">Select a volume and provide keywords to begin.</p>
                 </div>
             </div>
         </section>
     </main>
-    <script src="app.js" defer></script>
+
+    <script>
+        /**
+         * Marx's Capital Context Extractor - Integrated Logic
+         */
+
+        const SOURCES = {
+            html_marxists_v1: {
+                type: 'html',
+                name: 'Vol. I',
+                baseUrl: 'https://www.marxists.org/archive/marx/works/1867-c1/',
+                chapters: Array.from({length: 33}, (_, i) => `ch${String(i + 1).padStart(2, '0')}.htm`),
+                citationTemplate: "(Marx, 1867, Vol. I, Ch. {chapter})",
+                fullCitation: "Marx, K. (1867). <i>Capital, Volume I</i>. Moscow: Progress Publishers.",
+                link: "https://www.marxists.org/archive/marx/works/1867-c1/"
+            },
+            html_marxists_v2: {
+                type: 'html',
+                name: 'Vol. II',
+                baseUrl: 'https://www.marxists.org/archive/marx/works/1885-c2/',
+                chapters: Array.from({length: 19}, (_, i) => `ch${String(i + 1).padStart(2, '0')}.htm`).concat(['ch20_01.htm', 'ch20_02.htm', 'ch20_03.htm', 'ch20_04.htm', 'ch21_01.htm', 'ch21_02.htm']),
+                citationTemplate: "(Marx, 1885, Vol. II, Ch. {chapter})",
+                fullCitation: "Marx, K. (1885). <i>Capital, Volume II</i>. Moscow: Progress Publishers.",
+                link: "https://www.marxists.org/archive/marx/works/1885-c2/"
+            },
+            html_marxists_v3: {
+                type: 'html',
+                name: 'Vol. III',
+                baseUrl: 'https://www.marxists.org/archive/marx/works/1894-c3/',
+                chapters: Array.from({length: 52}, (_, i) => `ch${String(i + 1).padStart(2, '0')}.htm`),
+                citationTemplate: "(Marx, 1894, Vol. III, Ch. {chapter})",
+                fullCitation: "Marx, K. (1894). <i>Capital, Volume III</i>. Moscow: Progress Publishers.",
+                link: "https://www.marxists.org/archive/marx/works/1894-c3/"
+            },
+            html_marxists_all: {
+                type: 'collection',
+                sources: ['html_marxists_v1', 'html_marxists_v2', 'html_marxists_v3'],
+                fullCitation: "Marx, K. (1867-1894). <i>Capital, Volumes I-III</i>. Moscow: Progress Publishers.",
+                link: "https://www.marxists.org/archive/marx/works/"
+            }
+        };
+
+        const defaultKeywords = `\\b(africa|egypt|black|slaves?|us south|plantations?|primitive accumulation|colon(?:ial|ies)|cotton|sugar|aboriginal|indigenous|chattel|civil war|pedestal|expropriations?|extirpation|plunder|west indies|east indies|emancipation|virginia|ireland)\\b`;
+
+        let currentExtractionData = {};
+        let activeSourceRef = null;
+        let ui = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            ui = {
+                keywordInput: document.getElementById('keywordInput'),
+                sourceSelect: document.getElementById('sourceSelect'),
+                extractBtn: document.getElementById('extractBtn'),
+                downloadBtn: document.getElementById('downloadBtn'),
+                statusText: document.getElementById('statusText'),
+                statusIndicator: document.getElementById('statusIndicator'),
+                progressBar: document.getElementById('progressBar'),
+                progressContainer: document.getElementById('progressContainer'),
+                resultsContainer: document.getElementById('resultsContainer'),
+                matchCount: document.getElementById('matchCount'),
+                citationBanner: document.getElementById('citationBanner'),
+                activeCitationText: document.getElementById('activeCitationText'),
+                activeCitationLink: document.getElementById('activeCitationLink')
+            };
+
+            if (ui.keywordInput) ui.keywordInput.value = defaultKeywords;
+            if (ui.extractBtn) ui.extractBtn.addEventListener('click', startExtraction);
+            if (ui.downloadBtn) ui.downloadBtn.addEventListener('click', generateAndDownloadMarkdown);
+        });
+
+        function updateStatus(text, state = 'idle') {
+            if (!ui.statusText) return;
+            ui.statusText.textContent = text;
+            ui.statusIndicator.className = 'w-2.5 h-2.5 rounded-full';
+            if (state === 'idle') ui.statusIndicator.classList.add('bg-slate-300');
+            else if (state === 'running') ui.statusIndicator.classList.add('bg-indigo-500', 'animate-pulse');
+            else if (state === 'success') ui.statusIndicator.classList.add('bg-emerald-500');
+            else if (state === 'error') ui.statusIndicator.classList.add('bg-red-500');
+        }
+
+        async function startExtraction() {
+            const rawKeywords = ui.keywordInput.value.trim();
+            if (!rawKeywords) return alert("Please enter keywords.");
+
+            const sourceKey = ui.sourceSelect.value;
+            const source = SOURCES[sourceKey];
+            activeSourceRef = source;
+            
+            let keywordPattern;
+            try { keywordPattern = new RegExp(rawKeywords, 'ig'); } 
+            catch (e) { return alert("Invalid Regex Pattern."); }
+
+            ui.extractBtn.disabled = true;
+            ui.downloadBtn.disabled = true;
+            ui.resultsContainer.innerHTML = '';
+            ui.matchCount.classList.add('hidden');
+            ui.progressContainer.classList.remove('hidden');
+            ui.citationBanner.classList.remove('hidden');
+            ui.activeCitationText.innerHTML = source.fullCitation;
+            ui.activeCitationLink.href = source.link;
+            ui.progressBar.style.width = '0%';
+            currentExtractionData = {};
+            
+            updateStatus('Initializing job...', 'running');
+
+            try {
+                if (source.type === 'collection') {
+                    for (const subKey of source.sources) {
+                        await extractFromHTML(SOURCES[subKey], keywordPattern, SOURCES[subKey].name);
+                    }
+                } else {
+                    await extractFromHTML(source, keywordPattern, source.name);
+                }
+                renderResults();
+                updateStatus('Extraction complete', 'success');
+            } catch (error) {
+                console.error(error);
+                updateStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                ui.extractBtn.disabled = false;
+                ui.progressContainer.classList.add('hidden');
+                if (Object.keys(currentExtractionData).length > 0) ui.downloadBtn.disabled = false;
+            }
+        }
+
+        async function extractFromHTML(source, regex, volumeName) {
+            const total = source.chapters.length;
+            for (let i = 0; i < total; i++) {
+                const chapterFile = source.chapters[i];
+                let chapterDisplay = chapterFile.replace('ch', '').replace('.htm', '').replace('_', '.');
+                if (chapterDisplay.startsWith('0')) chapterDisplay = chapterDisplay.substring(1);
+                
+                const targetUrl = source.baseUrl + chapterFile;
+                updateStatus(`Processing ${volumeName} Ch. ${chapterDisplay}`, 'running');
+                ui.progressBar.style.width = `${((i) / total) * 100}%`;
+
+                try {
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    
+                    if (data.contents) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(data.contents, "text/html");
+                        doc.querySelectorAll('script, style, nav, footer, .footer, .information, .toc, .index').forEach(el => el.remove());
+                        const text = doc.body.innerText || doc.body.textContent;
+                        
+                        const citationStr = source.citationTemplate.replace('{chapter}', chapterDisplay);
+                        const matches = processTextForMatches(text, regex, chapterDisplay, citationStr);
+                        if (matches.length > 0) {
+                            const sectionKey = `${volumeName} - Chapter ${chapterDisplay}`;
+                            currentExtractionData[sectionKey] = matches;
+                        }
+                    }
+                } catch (err) { console.warn(`Failed: ${chapterFile}`, err); }
+                await new Promise(r => setTimeout(r, 30));
+            }
+            ui.progressBar.style.width = `100%`;
+        }
+
+        function processTextForMatches(text, regex, locationRef, citationStr) {
+            const sentenceRegex = /[^.!?]+[.!?]+(?=\s|$)/g;
+            const sentences = (text.match(sentenceRegex) || [text]).map(s => s.trim()).filter(s => s.length > 0);
+            const matchIndices = [];
+            sentences.forEach((s, idx) => { regex.lastIndex = 0; if (regex.test(s)) matchIndices.push(idx); });
+
+            if (matchIndices.length === 0) return [];
+
+            const windows = matchIndices.map(i => ({ start: Math.max(0, i - 1), end: Math.min(sentences.length - 1, i + 1) }));
+            const merged = [];
+            if (windows.length > 0) {
+                let curr = windows[0];
+                for (let i = 1; i < windows.length; i++) {
+                    if (windows[i].start <= curr.end + 1) curr.end = Math.max(curr.end, windows[i].end);
+                    else { merged.push(curr); curr = windows[i]; }
+                }
+                merged.push(curr);
+            }
+            return merged.map(w => `"${sentences.slice(w.start, w.end + 1).join(" ")}" ${citationStr}`);
+        }
+
+        function renderResults() {
+            ui.resultsContainer.innerHTML = '';
+            let count = 0;
+            const fragment = document.createDocumentFragment();
+            for (const [section, quotes] of Object.entries(currentExtractionData)) {
+                const h3 = document.createElement('h3');
+                h3.className = "text-base font-semibold text-slate-800 border-b border-slate-200 pb-2 mb-4 mt-8 first:mt-2";
+                h3.textContent = section;
+                fragment.appendChild(h3);
+                quotes.forEach(quote => {
+                    count++;
+                    const p = document.createElement('p');
+                    p.className = "mb-5 text-sm leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm relative pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-indigo-500 before:rounded-l-lg";
+                    const hlRegex = new RegExp(`\\b(${ui.keywordInput.value.trim()})\\b`, 'gi');
+                    p.innerHTML = quote.replace(hlRegex, '<mark class="bg-indigo-100 text-indigo-900 font-semibold px-1 rounded">$1</mark>');
+                    fragment.appendChild(p);
+                });
+            }
+            if (count === 0) ui.resultsContainer.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400">No matches found.</div>';
+            else { 
+                ui.resultsContainer.appendChild(fragment); 
+                ui.matchCount.textContent = `${count} matches`; 
+                ui.matchCount.classList.remove('hidden'); 
+            }
+        }
+
+        function generateAndDownloadMarkdown() {
+            const temp = document.createElement("div"); 
+            temp.innerHTML = activeSourceRef.fullCitation;
+            let md = `# Capital Context Report\n\n**Source:** ${temp.textContent}\n**Link:** ${activeSourceRef.link}\n\n---\n\n`;
+            for (const [section, quotes] of Object.entries(currentExtractionData)) {
+                md += `## ${section}\n\n`;
+                quotes.forEach(q => md += `> ${q}\n\n`);
+            }
+            const blob = new Blob([md], { type: 'text/markdown' });
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = `capital_report_${Date.now()}.md`; 
+            a.click();
+        }
+    </script>
 </body>
 </html>
