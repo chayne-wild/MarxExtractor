@@ -226,14 +226,15 @@ const App = (function() {
                 
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHTML, "text/html");
-                doc.querySelectorAll('script, style, nav, footer, .footer, .information, .toc, .index').forEach(el => el.remove());
                 
-                // Collapse all newlines and excess spaces to guarantee hyphenated words aren't missed
-                const rawText = doc.body.textContent || "";
-                const cleanText = rawText.replace(/-\s*\n\s*/g, '').replace(/\s+/g, ' ').trim();
+                // Restrict DOM filtering to safe tags to avoid wiping out primary manuscript text
+                doc.querySelectorAll('script, style, nav, footer').forEach(el => el.remove());
+                
+                // Revert to innerText to respect natural DOM spacing and word boundaries
+                const text = doc.body.innerText || doc.body.textContent;
                 
                 const citationStr = source.citationTemplate.replace('{chapter}', chapterDisplay);
-                const matches = processTextForMatches(cleanText, regex, citationStr);
+                const matches = processTextForMatches(text, regex, citationStr);
                 
                 if (matches.length > 0) {
                     const sectionKey = `${volumeName} - Chapter ${chapterDisplay}`;
@@ -258,10 +259,11 @@ const App = (function() {
         ui.progressBar.style.width = `100%`;
     }
 
-    function processTextForMatches(cleanText, regex, citationStr) {
-        // Robust split: Avoids lookbehind errors on older browsers, captures sentences reliably
-        const sentenceRegex = /[^.!?]+[.!?]+["']?(?=\s|$)/g;
-        const sentences = (cleanText.match(sentenceRegex) || [cleanText]).map(s => s.trim()).filter(s => s.length > 0);
+    function processTextForMatches(text, regex, citationStr) {
+        // Restore resilient tokenization (match method)
+        const sentenceRegex = /[^.!?]+[.!?]+(?=\s|$)/g;
+        const rawSentences = text.match(sentenceRegex) || [text];
+        const sentences = rawSentences.map(s => s.trim()).filter(s => s.length > 0);
         
         const matchIndices = [];
         sentences.forEach((s, idx) => { 
