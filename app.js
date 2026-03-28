@@ -102,6 +102,46 @@ const App = (function() {
         ui.resultsContainer.appendChild(fragment);
     }
 
+    /**
+     * Robust fetch wrapper implementing multi-proxy fallbacks to handle strict rate-limiting.
+     */
+    async function fetchWithProxyFallback(targetUrl) {
+        const encodedUrl = encodeURIComponent(targetUrl);
+        const proxies = [
+            `https://api.allorigins.win/raw?url=${encodedUrl}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}`,
+            `https://corsproxy.io/?${encodedUrl}`
+        ];
+
+        let lastErrorMsg = "";
+
+        for (const proxy of proxies) {
+            try {
+                const response = await fetch(proxy);
+                if (response.status === 429) {
+                    throw new Error("HTTP 429: Proxy rate limit hit.");
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const htmlText = await response.text();
+                
+                // Validate it's actually Marxists.org content and not a silent proxy error page
+                if (htmlText.includes("Karl Marx") || htmlText.includes("Capital") || htmlText.length > 2000) {
+                    return htmlText;
+                } else {
+                    throw new Error("Proxy returned invalid payload format.");
+                }
+            } catch (err) {
+                lastErrorMsg = err.message;
+                console.warn(`Proxy failed (${proxy}):`, err.message);
+                continue; // Try next proxy
+            }
+        }
+        throw new Error(`All proxies failed. Last error: ${lastErrorMsg}`);
+    }
+
     async function startExtraction() {
         const rawKeywords = ui.keywordInput.value.trim();
         if (!rawKeywords) return alert("Please enter keywords.");
@@ -159,7 +199,8 @@ const App = (function() {
             
         } catch (error) {
             console.error(error);
-            updateStatus(`Error: ${error.message}`, 'error');
+            updateStatus(`Job Error`, 'error');
+            appendErrorToUI("Job Execution Failed", error.message);
         } finally {
             ui.extractBtn.disabled = false;
             ui.progressContainer.classList.add('hidden');
@@ -181,62 +222,46 @@ const App = (function() {
             ui.progressBar.style.width = `${((i) / total) * 100}%`;
 
             try {
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-                const response = await fetch(proxyUrl);
+                const rawHTML = await fetchWithProxyFallback(targetUrl);
                 
-                if (!response.ok) {
-                    if (response.status === 429) throw new Error("HTTP 429: Rate limit exceeded by the CORS proxy. Please wait a few minutes.");
-                    throw new Error(`HTTP ${response.status} from proxy.`);
-                }
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(rawHTML, "text/html");
+                doc.querySelectorAll('script, style, nav, footer, .footer, .information, .toc, .index').forEach(el => el.remove());
                 
-                const data = await response.json();
+                // Collapse all newlines and excess spaces to guarantee hyphenated words aren't missed
+                const rawText = doc.body.textContent || "";
+                const cleanText = rawText.replace(/-\s*\n\s*/g, '').replace(/\s+/g, ' ').trim();
                 
-                if (data.status && data.status.http_code === 429) {
-                    throw new Error("HTTP 429: Target site (marxists.org) has rate-limited the proxy. Please try again later.");
-                }
-                if (data.status && data.status.http_code !== 200 && data.status.http_code !== 304) {
-                    throw new Error(`HTTP ${data.status.http_code} returned from target site.`);
-                }
+                const citationStr = source.citationTemplate.replace('{chapter}', chapterDisplay);
+                const matches = processTextForMatches(cleanText, regex, citationStr);
                 
-                if (data.contents) {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(data.contents, "text/html");
-                    doc.querySelectorAll('script, style, nav, footer, .footer, .information, .toc, .index').forEach(el => el.remove());
-                    
-                    // Collapse all newlines and excess spaces to guarantee hyphenated words aren't missed
-                    const rawText = doc.body.textContent || "";
-                    const cleanText = rawText.replace(/-\s*\n\s*/g, '').replace(/\s+/g, ' ').trim();
-                    
-                    const citationStr = source.citationTemplate.replace('{chapter}', chapterDisplay);
-                    const matches = processTextForMatches(cleanText, regex, citationStr);
-                    
-                    if (matches.length > 0) {
-                        const sectionKey = `${volumeName} - Chapter ${chapterDisplay}`;
-                        currentExtractionData[sectionKey] = {
-                            url: targetUrl,
-                            quotes: matches
-                        };
-                        appendResultToUI(sectionKey, currentExtractionData[sectionKey]);
-                    }
-                } else {
-                    throw new Error("Empty response contents received from proxy.");
+                if (matches.length > 0) {
+                    const sectionKey = `${volumeName} - Chapter ${chapterDisplay}`;
+                    currentExtractionData[sectionKey] = {
+                        url: targetUrl,
+                        quotes: matches
+                    };
+                    appendResultToUI(sectionKey, currentExtractionData[sectionKey]);
                 }
             } catch (err) { 
                 console.warn(`Failed: ${chapterFile}`, err);
                 if (err.message.includes('429')) {
-                    appendErrorToUI(`${volumeName} - Ch. ${chapterDisplay}`, err.message);
+                    appendErrorToUI(`${volumeName} - Ch. ${chapterDisplay}`, "Strict rate-limiting hit on all proxies. Job aborted to prevent spamming.");
                     isJobHalted = true;
                     throw err;
+                } else {
+                    appendErrorToUI(`${volumeName} - Ch. ${chapterDisplay}`, err.message);
                 }
             }
-            await new Promise(r => setTimeout(r, 400)); // Delay increased to 400ms to avoid CORS limits
+            await new Promise(r => setTimeout(r, 600)); // 600ms backoff required to survive multi-volume pulls via free proxies
         }
         ui.progressBar.style.width = `100%`;
     }
 
     function processTextForMatches(cleanText, regex, citationStr) {
-        // Robust split: Match up to punctuation, keep it attached, and split exactly at space boundaries
-        const sentences = cleanText.split(/(?<=[.!?]["']?)\s+/).filter(s => s.length > 0);
+        // Robust split: Avoids lookbehind errors on older browsers, captures sentences reliably
+        const sentenceRegex = /[^.!?]+[.!?]+["']?(?=\s|$)/g;
+        const sentences = (cleanText.match(sentenceRegex) || [cleanText]).map(s => s.trim()).filter(s => s.length > 0);
         
         const matchIndices = [];
         sentences.forEach((s, idx) => { 
